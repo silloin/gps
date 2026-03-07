@@ -8,13 +8,13 @@ const pool = require('../config/db');
 // @access  Private
 router.post('/', auth, async (req, res) => {
   const { planType, workouts } = req.body;
+  const userId = parseInt(req.user.id, 10);
 
   try {
     const newPlan = await pool.query(
       'INSERT INTO training_plans (userid, plantype, workouts) VALUES ($1, $2, $3) RETURNING *',
-      [req.user.id, planType, JSON.stringify(workouts)]
+      [userId, planType, JSON.stringify(workouts)]
     );
-
     res.json(newPlan.rows[0]);
   } catch (err) {
     console.error(err.message);
@@ -26,10 +26,10 @@ router.post('/', auth, async (req, res) => {
 // @desc    Get the user's training plan
 // @access  Private
 router.get('/', auth, async (req, res) => {
+  const userId = parseInt(req.user.id, 10);
+
   try {
-    const plan = await pool.query('SELECT * FROM training_plans WHERE userid = $1', [
-      req.user.id,
-    ]);
+    const plan = await pool.query('SELECT * FROM training_plans WHERE userid = $1', [userId]);
     res.json(plan.rows[0] || null);
   } catch (err) {
     console.error(err.message);
@@ -41,10 +41,10 @@ router.get('/', auth, async (req, res) => {
 // @desc    Get the user's current training plan
 // @access  Private
 router.get('/current', auth, async (req, res) => {
+  const userId = parseInt(req.user.id, 10);
+
   try {
-    const plan = await pool.query('SELECT * FROM training_plans WHERE userid = $1 ORDER BY startdate DESC LIMIT 1', [
-      req.user.id,
-    ]);
+    const plan = await pool.query('SELECT * FROM training_plans WHERE userid = $1 ORDER BY startdate DESC LIMIT 1', [userId]);
     res.json(plan.rows[0] || null);
   } catch (err) {
     console.error(err.message);
@@ -57,16 +57,14 @@ router.get('/current', auth, async (req, res) => {
 // @access  Private
 router.post('/generate', auth, async (req, res) => {
   const { planType } = req.body;
+  const userId = parseInt(req.user.id, 10);
 
   try {
-    // Generate sample workouts based on plan type
     const workouts = generateWorkouts(planType);
-    
     const newPlan = await pool.query(
       'INSERT INTO training_plans (userid, plantype, workouts) VALUES ($1, $2, $3) RETURNING *',
-      [req.user.id, planType, JSON.stringify(workouts)]
+      [userId, planType, JSON.stringify(workouts)]
     );
-
     res.json(newPlan.rows[0]);
   } catch (err) {
     console.error(err.message);
@@ -78,31 +76,25 @@ router.post('/generate', auth, async (req, res) => {
 // @desc    Mark a workout as completed
 // @access  Private
 router.put('/workout/:workoutId', auth, async (req, res) => {
+  const { workoutId } = req.params;
+  const userId = parseInt(req.user.id, 10);
+
   try {
-    const { workoutId } = req.params;
-    
-    // Get current plan
-    const planResult = await pool.query('SELECT * FROM training_plans WHERE userid = $1', [
-      req.user.id,
-    ]);
-    
+    const planResult = await pool.query('SELECT * FROM training_plans WHERE userid = $1', [userId]);
     if (planResult.rows.length === 0) {
       return res.status(404).json({ msg: 'Training plan not found' });
     }
 
     const plan = planResult.rows[0];
     const workouts = plan.workouts || [];
-    
-    // Find and mark workout as completed
     const updatedWorkouts = workouts.map((w) => 
       w._id === workoutId ? { ...w, completed: true } : w
     );
 
     const updatedPlan = await pool.query(
       'UPDATE training_plans SET workouts = $1 WHERE userid = $2 RETURNING *',
-      [JSON.stringify(updatedWorkouts), req.user.id]
+      [JSON.stringify(updatedWorkouts), userId]
     );
-
     res.json(updatedPlan.rows[0]);
   } catch (err) {
     console.error(err.message);

@@ -8,11 +8,12 @@ const pool = require('../config/db');
 // @access  Private
 router.post('/', auth, async (req, res) => {
   const { distance, duration, avgPace, route } = req.body;
+  const userId = parseInt(req.user.id, 10);
 
   try {
     const newRun = await pool.query(
       'INSERT INTO runs (userid, distance, duration, avgpace, route) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [req.user.id, distance, duration, avgPace, JSON.stringify(route)]
+      [userId, distance, duration, avgPace, JSON.stringify(route)]
     );
     res.json(newRun.rows[0]);
   } catch (err) {
@@ -25,10 +26,12 @@ router.post('/', auth, async (req, res) => {
 // @desc    Get all runs for a user
 // @access  Private
 router.get('/', auth, async (req, res) => {
+  const userId = parseInt(req.user.id, 10);
+
   try {
     const runs = await pool.query(
       'SELECT id, userid, distance, duration, avgpace, route, createdat FROM runs WHERE userid = $1 ORDER BY id DESC',
-      [req.user.id]
+      [userId]
     );
     res.json(runs.rows);
   } catch (err) {

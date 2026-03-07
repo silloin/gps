@@ -24,6 +24,7 @@ router.post('/upload', auth, upload.single('gpxFile'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ msg: 'No file uploaded' });
   }
+  const userId = parseInt(req.user.id, 10);
 
   try {
     const parser = new xml2js.Parser();
@@ -83,7 +84,7 @@ router.post('/upload', auth, upload.single('gpxFile'), async (req, res) => {
     // Store run in database
     const newRun = await pool.query(
       'INSERT INTO runs (userid, distance, duration, avgpace, route) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [req.user.id, distance, duration, avgPace, JSON.stringify(route)]
+      [userId, distance, duration, avgPace, JSON.stringify(route)]
     );
 
     res.json({
